@@ -1,7 +1,7 @@
 from typing import Any, Iterable
 import re
 import json
-from manga_spider.items import MangaSpiderItem
+from manga_spider.items import NHentaiMangaSpiderItem
 
 import scrapy
 from scrapy.http import Request, Response
@@ -27,6 +27,6 @@ class NHentaiSpider(scrapy.Spider):
             if m is not None:
                 json_meta = bytes(m.group(1), "utf-8").decode("unicode_escape")
                 dict_meta = json.loads(json_meta)
-                item = MangaSpiderItem.from_dict(dict_meta)
+                item = NHentaiMangaSpiderItem.from_dict(dict_meta)
                 yield item
                 break

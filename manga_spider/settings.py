@@ -7,6 +7,8 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
+import pathlib
+
 BOT_NAME = "manga_spider"
 
 SPIDER_MODULES = ["manga_spider.spiders"]
@@ -62,9 +64,10 @@ ROBOTSTXT_OBEY = True
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    "manga_spider.pipelines.MangaSpiderPipeline": 300,
-#}
+ITEM_PIPELINES = {
+    "manga_spider.pipelines.MyImagesPipeline": 300,
+}
+IMAGES_STORE = pathlib.Path(__file__).parent.resolve().joinpath("mangas")
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

@@ -4,14 +4,18 @@
 # https://docs.scrapy.org/en/latest/topics/items.html
 
 from dataclasses import dataclass, field
+import abc
 from datetime import datetime, timezone
 from typing import Any
+import random
 
 EXTS = {
     "j": "jpg",
     "p": "png",
     "g": "gif",
 }
+
+MEDIA_SERVERS = [3, 5, 7]
 
 @dataclass
 class MangaImage:
@@ -118,3 +122,30 @@ class MangaSpiderItem:
         if "upload_date" in obj and obj["upload_date"] is not None:
             item.upload_date = datetime.fromtimestamp(obj["upload_date"])
         return item
+    
+    @abc.abstractmethod
+    def type(self) -> str:
+        pass
+
+    @abc.abstractmethod
+    def page_urls(self) -> list[str]:
+        pass
+    
+    @abc.abstractmethod
+    def page_file_name(self, url: str) -> str:
+        pass
+        
+@dataclass
+class NHentaiMangaSpiderItem(MangaSpiderItem):
+    
+    def type() -> str:
+        return "nhentai"
+    
+    def page_urls(self) -> list[str]:
+        if self.images is not None:
+            return [f"https://i{random.choice(MEDIA_SERVERS)}.nhentai.net/galleries/{self.media_id}/{i + 1}.{EXTS[page.t]}" for i, page in enumerate(self.images.pages)]
+        else:
+            return []
+        
+    def page_file_name(self, url: str) -> str:
+        return url.rsplit("/", 1)[1]
