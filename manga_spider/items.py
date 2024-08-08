@@ -7,7 +7,9 @@ from dataclasses import dataclass, field
 import abc
 from datetime import datetime, timezone
 from typing import Any
+from typing_extensions import Self
 import random
+from scrapy.item import Item
 
 EXTS = {
     "j": "jpg",
@@ -23,11 +25,11 @@ class MangaImage:
     w: int = field(default=0)
     h: int = field(default=0)
     
-    @staticmethod
-    def from_json(obj: Any) -> "MangaImage | None":
+    @classmethod
+    def from_json(cls, obj: Any) -> "Self | None":
         if obj is None:
             return None
-        image = MangaImage()
+        image = cls()
         if "t" in obj and obj["t"] is not None:
             image.t = obj["t"]
         if "w" in obj and obj["w"] is not None:
@@ -42,11 +44,11 @@ class MangaImages:
     pages: list[MangaImage] = field(default_factory=list)
     thumbnail: MangaImage = field(default=None)
     
-    @staticmethod
-    def from_json(obj: Any) -> "MangaImages | None":
+    @classmethod
+    def from_json(cls, obj: Any) -> "Self | None":
         if obj is None:
             return None
-        images = MangaImages()
+        images = cls()
         if "cover" in obj:
             images.cover = MangaImage.from_json(obj["cover"])
         if "pages" in obj and obj["pages"] is not None:
@@ -67,6 +69,7 @@ class MangaSpiderItem:
     title_japanese: str | None = field(default=None)
     title_pretty: str | None = field(default=None)
     images: MangaImages | None = field(default=None)
+    download_pages: list[Any] = field(default_factory=list)
     parodies: list[str] = field(default_factory=list)
     characters: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
@@ -77,9 +80,9 @@ class MangaSpiderItem:
     pages: int = field(default=0)
     upload_date: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
-    @staticmethod
-    def from_dict(obj: Any) -> "MangaSpiderItem":
-        item = MangaSpiderItem(id=obj["id"], media_id=obj["media_id"])
+    @classmethod
+    def from_dict(cls, obj: Any) -> "Self":
+        item = cls(id=obj["id"], media_id=obj["media_id"])
         if "title" in obj and obj["title"] is not None:
             title = obj["title"]
             if "english" in title and title["english"] is not None:
@@ -138,7 +141,7 @@ class MangaSpiderItem:
 @dataclass
 class NHentaiMangaSpiderItem(MangaSpiderItem):
     
-    def type() -> str:
+    def type(self) -> str:
         return "nhentai"
     
     def page_urls(self) -> list[str]:

@@ -67,7 +67,8 @@ ROBOTSTXT_OBEY = True
 ITEM_PIPELINES = {
     "manga_spider.pipelines.MyImagesPipeline": 300,
 }
-IMAGES_STORE = pathlib.Path(__file__).parent.resolve().joinpath("mangas")
+IMAGES_RESULT_FIELD = "download_pages"
+IMAGES_STORE = str(pathlib.Path(__file__).parent.resolve().joinpath("mangas"))
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
@@ -94,3 +95,10 @@ AUTOTHROTTLE_DEBUG = False
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
+FEED_EXPORT_BATCH_ITEM_COUNT = 10000
+FEED_URI_PARAMS = "manga_spider.utils.uri_params"
+FEEDS = {
+    str(pathlib.Path(__file__).parent.resolve().joinpath(f"results/%(spider_name)s/item-%(batch_id)d.jsonl")): {
+        "format": "jsonlines",
+    }
+}

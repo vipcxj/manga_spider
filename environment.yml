@@ -1,0 +1,11 @@
+name: manga-spider
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - scrapy
+  - ca-certificates
+  - openssl
+  - conda-forge::pillow
+  - certifi
