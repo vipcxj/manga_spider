@@ -4,9 +4,10 @@
 # https://docs.scrapy.org/en/latest/topics/items.html
 
 from dataclasses import dataclass, field
+from dataclasses_json import dataclass_json
 import abc
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 from typing_extensions import Self
 import random
 from scrapy.item import Item
@@ -19,6 +20,7 @@ EXTS = {
 
 MEDIA_SERVERS = [3, 5, 7]
 
+@dataclass_json
 @dataclass
 class MangaImage:
     t: str = field(default_factory=lambda: "")
@@ -38,11 +40,12 @@ class MangaImage:
             image.h = obj["h"]
         return image
 
+@dataclass_json
 @dataclass
 class MangaImages:
-    cover: MangaImage = field(default=None)
+    cover: MangaImage | None = field(default=None)
     pages: list[MangaImage] = field(default_factory=list)
-    thumbnail: MangaImage = field(default=None)
+    thumbnail: MangaImage | None = field(default=None)
     
     @classmethod
     def from_json(cls, obj: Any) -> "Self | None":
@@ -53,7 +56,9 @@ class MangaImages:
             images.cover = MangaImage.from_json(obj["cover"])
         if "pages" in obj and obj["pages"] is not None:
             for page in obj["pages"]:
-                images.pages.append(MangaImage.from_json(page))
+                image = MangaImage.from_json(page)
+                assert image is not None
+                images.pages.append(image)
         if "thumbnail" in obj:
             images.thumbnail = MangaImage.from_json(obj["thumbnail"])
         return images
@@ -61,6 +66,7 @@ class MangaImages:
 def process_tag(tag: str) -> list[str]:
     return list(dict.fromkeys([part.strip() for part in tag.split("|")]))
 
+@dataclass_json
 @dataclass
 class MangaSpiderItem:
     id: int
@@ -138,6 +144,7 @@ class MangaSpiderItem:
     def page_file_name(self, url: str) -> str:
         pass
         
+@dataclass_json
 @dataclass
 class NHentaiMangaSpiderItem(MangaSpiderItem):
     
@@ -152,3 +159,11 @@ class NHentaiMangaSpiderItem(MangaSpiderItem):
         
     def page_file_name(self, url: str) -> str:
         return url.rsplit("/", 1)[1]
+    
+def item_from_json(spider: str, json_str: str) -> MangaSpiderItem:
+    if spider == "nhentai":
+        item: NHentaiMangaSpiderItem = cast(Any, NHentaiMangaSpiderItem).schema().loads(json_str)
+        return item
+    else:
+        raise ValueError(f"unknown spider {spider}")
+    

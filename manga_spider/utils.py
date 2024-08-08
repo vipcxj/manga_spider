@@ -8,10 +8,12 @@ def uri_params(params, spider):
         "spider_name": spider.name
     }
     
+def result_dir(spider: str):
+    return pathlib.Path(__file__).parent.resolve().joinpath(f"results/{spider}")
+    
 def result_files(spider: str):
-    res_path = pathlib.Path(__file__).parent.resolve().joinpath(f"results/{spider}")
     files: list[pathlib.Path] = []
-    for file in res_path.glob("item-*.jsonl"):
+    for file in result_dir(spider=spider).glob("item-*.jsonl"):
         if file.is_file():
             files.append(file)
     return files

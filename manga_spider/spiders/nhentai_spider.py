@@ -1,13 +1,11 @@
-from typing import Any, Iterable
+from typing import Any, cast
 import re
 import json
 from manga_spider.items import NHentaiMangaSpiderItem
 from manga_spider.utils import completed_ids
 
 import scrapy
-from scrapy.http import Request, Response
-from scrapy.http.request import NO_CALLBACK
-from scrapy.utils.defer import maybe_deferred_to_future
+from scrapy.http import Response
     
 
 class NHentaiSpider(scrapy.Spider):
@@ -32,7 +30,7 @@ class NHentaiSpider(scrapy.Spider):
             raise RuntimeError(f"Unable parse the latest manga id from link: {latest_link}")
     
     def parse_manga(self, response: Response, **kwargs: Any) -> Any:
-        for script in response.css("script::text").getall():
+        for script in cast(Any, response.css("script::text").getall()):
             m = re.search(r"JSON.parse\(\"(.*?)\"\);", script)
             if m is not None:
                 json_meta = bytes(m.group(1), "utf-8").decode("unicode_escape")
