@@ -95,7 +95,7 @@ AUTOTHROTTLE_DEBUG = False
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
-FEED_EXPORT_BATCH_ITEM_COUNT = 10000
+FEED_EXPORT_BATCH_ITEM_COUNT = 1000
 FEED_URI_PARAMS = "manga_spider.utils.uri_params"
 FEEDS = {
     str(pathlib.Path(__file__).parent.resolve().joinpath(f"results/%(spider_name)s/item-%(batch_id)d.jsonl")): {

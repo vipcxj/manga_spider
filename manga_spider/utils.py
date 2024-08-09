@@ -1,6 +1,7 @@
 import pathlib
 import json
 from os import listdir
+from manga_spider.settings import FEED_EXPORT_BATCH_ITEM_COUNT
 
 def uri_params(params, spider):
     return {
@@ -27,3 +28,5 @@ def completed_ids(spider: str):
                 ids.add(item["id"])
     return ids
                     
+def get_batch_count():
+    return FEED_EXPORT_BATCH_ITEM_COUNT
