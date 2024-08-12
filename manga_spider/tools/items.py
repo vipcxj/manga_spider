@@ -1,28 +1,11 @@
-from attr import has
-from manga_spider.utils import result_files, result_dir
+from genericpath import exists
+import pathlib
+import tarfile
+from manga_spider.utils import count_lines, mmap_all, result_files, result_dir, result_file, resolve_feed_store_path
 from manga_spider.items import MangaSpiderItem, item_from_json
-from typing import Callable, Any, TextIO, BinaryIO
-from pathlib import Path
+from typing import Callable, Any, TextIO
 import json
-import mmap
 import tqdm
-import sys
-
-
-def count_lines(file_path: Path) -> int:
-    with file_path.open("r+b") as f:
-        mm = mmap.mmap(f.fileno(), 0)
-        lines = 0
-        while mm.readline():
-            lines += 1
-        mm.close()
-        return lines
-    
-def mmap_all(file: BinaryIO):
-    if sys.platform != "win32":
-        return mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ, prot=mmap.PROT_READ)
-    else:
-        return mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ)
     
 def item_to_json(item: Any) -> str | None:
     if item is not None:
@@ -108,7 +91,7 @@ def recreate_items(
                         for bline in iter(mm.readline, b""):
                             line = bline.decode("utf-8")
                             if mapper is not None:
-                                item = item_from_json(spider=spider, json_str=line)
+                                item = item_from_json(spider=spider, json_str=line, strict=False)
                                 item = mapper(item)
                                 if item is not None:
                                     new_line = item_to_json(item=item)
@@ -139,3 +122,29 @@ def fix_items(spider: str, batch_count: int, update_num_favorites: bool):
             item.num_favorites = num_favorites.get(item.id, 0)
         return item if item.is_completed() else None
     recreate_items(spider=spider, target_batch_count=batch_count, mapper=fix)
+    
+def tar_images(spider: str, batch_id: int, dest: str | None = None):
+    file_path = result_file(spider=spider, batch_id=batch_id)
+    if file_path.exists():
+        if dest is None:
+            dest = f"{file_path.stem}.tar.gz"
+        else:
+            dest = dest.format(batch_id=batch_id)
+        tar_path = pathlib.Path.cwd().joinpath(dest)
+        with tarfile.open(tar_path, mode="w:gz") as tar_file:
+            lines = count_lines(file_path)
+            with tqdm.tqdm(total=lines, desc=f"Processing {file_path.name}") as pbar:
+                with file_path.open("r+b") as f:
+                    with mmap_all(f) as mm:
+                        for bline in iter(mm.readline, b""):
+                            line = bline.decode("utf-8")
+                            item = item_from_json(spider=spider, json_str=line, strict=False)
+                            if item is not None and item.is_completed():
+                                for path in [page["path"] for page in item.download_pages]:
+                                    abs_path = resolve_feed_store_path(path=path)
+                                    if exists(abs_path):
+                                        tar_file.add(abs_path, arcname=path)
+                            pbar.update()
+            print(f"Tar file of item {batch_id} exported -> {tar_path}")
+    else:
+        print(f"The result file with batch id {batch_id} not exist. The expected file path is \"f{file_path.as_uri()}\".")

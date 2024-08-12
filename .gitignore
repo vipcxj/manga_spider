@@ -3,3 +3,4 @@
 __pycache__
 mangas
 results
+*.tar.gz
