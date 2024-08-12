@@ -1,19 +1,18 @@
 import contextlib
+import datetime
 import mmap
 import os
 import pathlib
 import json
 import sys
+import time
 from typing import Any, BinaryIO, Callable
 
 import tqdm
-from manga_spider.settings import FEED_EXPORT_BATCH_ITEM_COUNT, FEEDS
+from manga_spider.settings import FEED_EXPORT_BATCH_ITEM_COUNT, IMAGES_STORE
 
 def uri_params(params, spider):
-    return {
-        **params,
-        "spider_name": spider.name
-    }
+    return params
     
 def mmap_all(file: BinaryIO):
     if sys.platform != "win32":
@@ -34,17 +33,14 @@ def result_files(spider: str):
             files.append(file)
     return files
 
-def get_feed_store_root(format: str):
-    for key, feed in FEEDS.items():
-        if "format" in feed and feed["format"] == format:
-            return key
-    return None
+def get_feed_store_root():
+    return os.path.normpath(IMAGES_STORE)
 
-def resolve_feed_store_path(path: str, format: str = "jsonlines"):
-    root = get_feed_store_root(format=format)
+def resolve_feed_store_path(path: str):
+    root = get_feed_store_root()
     if root is None:
-        raise ValueError(f"Unable to find the feed config of format {format}.")
-    return os.path.join(root, path)
+        raise ValueError(f"Unable to find the images store path.")
+    return os.path.normpath(os.path.join(root, path))
 
 def count_lines(file_path: pathlib.Path) -> int:
     with file_path.open("r+b") as f:

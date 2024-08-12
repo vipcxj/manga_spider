@@ -5,12 +5,10 @@
 
 
 # useful for handling different item types with a single interface
-from itemadapter import ItemAdapter
 from scrapy.pipelines.images import ImagesPipeline
 from scrapy.http import Request
 from scrapy.http.request import NO_CALLBACK
 from manga_spider.items import MangaSpiderItem
-import re
 
 
 class MangaSpiderPipeline:
