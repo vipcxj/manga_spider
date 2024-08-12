@@ -4,14 +4,12 @@
 # https://docs.scrapy.org/en/latest/topics/items.html
 
 from dataclasses import dataclass, field
-from tkinter import NO
 from dataclasses_json import dataclass_json, config
 import abc
 from datetime import datetime, timezone
 from typing import Any, cast
 from typing_extensions import Self
 import random
-from scrapy.item import Item
 from marshmallow import fields
 
 EXTS = {

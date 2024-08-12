@@ -9,3 +9,5 @@ dependencies:
   - pillow
   - certifi
   - dataclasses-json
+  - argcomplete
+  - tqdm
