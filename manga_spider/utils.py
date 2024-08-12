@@ -17,7 +17,7 @@ def uri_params(params, spider):
     
 def mmap_all(file: BinaryIO):
     if sys.platform != "win32":
-        return mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ, prot=mmap.PROT_READ)
+        return mmap.mmap(file.fileno(), length=0, prot=mmap.PROT_READ)
     else:
         return mmap.mmap(file.fileno(), length=0, access=mmap.ACCESS_READ)
     
