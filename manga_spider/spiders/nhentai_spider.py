@@ -89,6 +89,7 @@ class NHentaiSpider(scrapy.Spider):
             href = manga.attrib["href"]
             manga_id = extract_id_from_link(href)
             if manga_id not in self.exclude_ids:
+                self.exclude_ids.add(manga_id)
                 yield scrapy.Request(url=f"https://nhentai.net/g/{manga_id}/", callback=self.parse_manga)
         if page < pages:
             yield scrapy.Request(artist_to_url(artist=artist, page=page + 1), callback=self.parse_artists, cb_kwargs={"artist": artist, "page": page + 1})
