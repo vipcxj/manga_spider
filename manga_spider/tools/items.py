@@ -1,4 +1,5 @@
 from genericpath import exists
+import os
 import pathlib
 import tarfile
 from manga_spider.utils import count_lines, mmap_all, result_files, result_dir, result_file, resolve_feed_store_path
@@ -123,7 +124,7 @@ def fix_items(spider: str, batch_count: int, update_num_favorites: bool):
         return item if item.is_completed() else None
     recreate_items(spider=spider, target_batch_count=batch_count, mapper=fix)
     
-def tar_images(spider: str, batch_id: int, dest: str | None = None):
+def tar_images(spider: str, batch_id: int, dest: str | None = None, move: bool = False):
     file_path = result_file(spider=spider, batch_id=batch_id)
     if file_path.exists():
         if dest is None:
@@ -144,6 +145,8 @@ def tar_images(spider: str, batch_id: int, dest: str | None = None):
                                     abs_path = resolve_feed_store_path(path=path)
                                     if exists(abs_path):
                                         tar_file.add(abs_path, arcname=path)
+                                        if move:
+                                            os.remove(abs_path)
                             pbar.update()
             print(f"Tar file of item {batch_id} exported -> {tar_path}")
     else:

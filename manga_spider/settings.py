@@ -58,9 +58,10 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
-#    "scrapy.extensions.telnet.TelnetConsole": None,
-#}
+EXTENSIONS = {
+   "scrapy.extensions.feedexport.FeedExporter": None,
+   "manga_spider.extensions.feedexport.MyFeedExport": 0,
+}
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html

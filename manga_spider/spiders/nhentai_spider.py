@@ -1,7 +1,9 @@
+from ast import mod
 import math
 from typing import Any, Iterable, cast
 import re
 import json
+from unittest import mock
 from manga_spider.items import NHentaiMangaSpiderItem
 from manga_spider.utils import completed_ids, results_each_line
 
@@ -35,15 +37,17 @@ def extract_id_from_link(link: str) -> int:
         
 MODE = [
     "default",
-    "same_artist"
+    "same_artist",
+    "same_group",
 ]
 
-def artist_to_url(artist: str, page: int) -> str:
-    tag = re.sub(r"[\s|]+", "-", artist)
-    return f"https://nhentai.net/artist/{tag}/?page={page}"
+def tag_to_url(tag: str, page: int, type: str) -> str:
+    tag = re.sub(r"[\s|]+", "-", tag)
+    return f"https://nhentai.net/{type}/{tag}/?page={page}"
+
 
 class NHentaiSpider(scrapy.Spider):
-    mode: str | None
+    mode: str | None = "default"
     exclude_ids: set[int]
     name = "nhentai"
     
@@ -52,18 +56,34 @@ class NHentaiSpider(scrapy.Spider):
         self.exclude_ids = completed_ids(self.name)
     
     def start_requests(self) -> Iterable[scrapy.Request]:
-        if hasattr(self, "mode") and self.mode == "same_artist":
-            artists: set[str] = set()
-            def collect_artists(line: str) -> bool:
-                item = json.loads(line)
-                if "artists" in item and item["artists"] is not None:
-                    artists.update(item["artists"])
-                # item = item_from_json(spider=self.name, json_str=line, strict=False)
-                return True
-            results_each_line(spider=self.name, cb=collect_artists, use_tqdm=True, tqdm_desc="Collect artists from {file_name}")
-            print(f"Collected {len(artists)} artists")
-            for artist in artists:
-                yield scrapy.Request(artist_to_url(artist=artist, page=1), callback=self.parse_artists, cb_kwargs={"artist": artist, "page": 1})
+        if hasattr(self, "mode"):
+            if self.mode == "same_artist":
+                artists: set[str] = set()
+                def collect_artists(line: str) -> bool:
+                    item = json.loads(line)
+                    if "artists" in item and item["artists"] is not None:
+                        artists.update(item["artists"])
+                    # item = item_from_json(spider=self.name, json_str=line, strict=False)
+                    return True
+                results_each_line(spider=self.name, cb=collect_artists, use_tqdm=True, tqdm_desc="Collect artists from {file_name}")
+                print(f"Collected {len(artists)} artists")
+                for artist in artists:
+                    yield scrapy.Request(tag_to_url(tag=artist, page=1, type="artist"), callback=self.parse_tags, cb_kwargs={"tag": artist, "type": "artist", "page": 1})
+            elif self.mode == "same_group":
+                groups: set[str] = set()
+                def collect_groups(line: str) -> bool:
+                    item = json.loads(line)
+                    if "groups" in item and item["groups"] is not None:
+                        groups.update(item["groups"])
+                    return True
+                results_each_line(spider=self.name, cb=collect_groups, use_tqdm=True, tqdm_desc="Collect groups from {file_name}")
+                print(f"Collected {len(groups)} groups")
+                for group in groups:
+                    yield scrapy.Request(tag_to_url(tag=group, page=1, type="group"), callback=self.parse_tags, cb_kwargs={"tag": group, "type": "group", "page": 1})
+            elif self.mode == "default":
+                yield scrapy.Request("https://nhentai.net/", callback=self.parse_home)
+            else:
+                raise ValueError(f"Invalid spider argument mode {self.mode}")
         else:                
             yield scrapy.Request("https://nhentai.net/", callback=self.parse_home)
 
@@ -79,9 +99,10 @@ class NHentaiSpider(scrapy.Spider):
         for url in self.collect_manga_urls(latest_id=latest_id):
             yield scrapy.Request(url=url, callback=self.parse_manga)
             
-    def parse_artists(self, response: Response, **kwargs: Any) -> Any:
+    def parse_tags(self, response: Response, **kwargs: Any) -> Any:
         count = int(response.css("#content h1 span.count::text").get())
-        artist = kwargs["artist"]
+        tag = kwargs["tag"]
+        type = kwargs["type"]
         page = kwargs["page"]
         pages = math.ceil(count * 1.0 / 25)
         mangas = response.css("#content > div.container.index-container > div.gallery > a")
@@ -92,7 +113,7 @@ class NHentaiSpider(scrapy.Spider):
                 self.exclude_ids.add(manga_id)
                 yield scrapy.Request(url=f"https://nhentai.net/g/{manga_id}/", callback=self.parse_manga)
         if page < pages:
-            yield scrapy.Request(artist_to_url(artist=artist, page=page + 1), callback=self.parse_artists, cb_kwargs={"artist": artist, "page": page + 1})
+            yield scrapy.Request(tag_to_url(tag=tag, page=page + 1, type=type), callback=self.parse_tags, cb_kwargs={"tag": tag, "type": type, "page": page + 1})
 
     def parse_manga(self, response: Response, **kwargs: Any) -> Any:
         for script in cast(Any, response.css("script::text").getall()):

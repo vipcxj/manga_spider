@@ -15,7 +15,7 @@ def repartition(args: argparse.Namespace):
     
 def export(args: argparse.Namespace):
     for batch in args.batches:
-        tar_images(args.spider, batch_id=batch, dest=args.dest)
+        tar_images(args.spider, batch_id=batch, dest=args.dest, move=args.move)
 
 parser = argparse.ArgumentParser(
     prog="manga spider tools",
@@ -37,6 +37,7 @@ parser_repartition.set_defaults(func=repartition)
 parser_export = subparsers.add_parser("export")
 parser_export.add_argument("--spider", required=True, choices=SPIDERS, help="The name of the spider")
 parser_export.add_argument("--dest", required=False, type=str, help="dest of the exported files")
+parser_export.add_argument("--move", required=False, default=False, action="store_true", help="if specified, the original images are deleted")
 parser_export.add_argument("batches", nargs="+", help="The batch ids")
 parser_export.set_defaults(func=export)
 
