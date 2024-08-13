@@ -2,12 +2,20 @@ from genericpath import exists
 import os
 import pathlib
 import tarfile
-from manga_spider.utils import count_lines, mmap_all, result_files, result_dir, result_file, resolve_feed_store_path
-from manga_spider.items import MangaSpiderItem, item_from_json
+from manga_spider.utils import (
+    count_lines,
+    mmap_all,
+    result_files,
+    result_dir,
+    result_file,
+    resolve_feed_store_path,
+)
+from manga_spider.items import item_from_json, is_completed
 from typing import Callable, Any, TextIO
 import json
 import tqdm
-    
+
+
 def item_to_json(item: Any) -> str | None:
     if item is not None:
         if hasattr(item, "to_json") and callable(item.to_json):
@@ -16,6 +24,7 @@ def item_to_json(item: Any) -> str | None:
             return json.dumps(item, separators=(",", ":"))
     else:
         return None
+
 
 class ItemReWriter:
     __spider: str
@@ -81,7 +90,7 @@ class ItemReWriter:
 def recreate_items(
     spider: str,
     target_batch_count: int,
-    mapper: Callable[[MangaSpiderItem], Any] | None,
+    mapper: Callable[[dict[str, Any]], Any] | None,
 ):
     with ItemReWriter(spider=spider, batch_count=target_batch_count) as w:
         for res_path in result_files(spider=spider):
@@ -92,12 +101,12 @@ def recreate_items(
                         for bline in iter(mm.readline, b""):
                             line = bline.decode("utf-8")
                             if mapper is not None:
-                                item = item_from_json(spider=spider, json_str=line, strict=False)
+                                item = json.loads(line)
                                 item = mapper(item)
                                 if item is not None:
-                                    new_line = item_to_json(item=item)
+                                    new_line = json.dumps(item, separators=(",", ":"))
                                     if new_line is not None:
-                                        w.append_line(line=new_line + '\n')
+                                        w.append_line(line=new_line + "\n")
                             else:
                                 if line.endswith("\r\n"):
                                     line = line[:-2] + "\n"
@@ -108,22 +117,48 @@ def recreate_items(
 def repartition_items(spider: str, batch_count: int):
     recreate_items(spider=spider, target_batch_count=batch_count, mapper=None)
 
-def fix_items(spider: str, batch_count: int, update_num_favorites: bool):
+
+def fix_items(
+    spider: str, batch_count: int, update_num_favorites: bool, unique_images: bool
+):
     num_favorites: dict[int, int] = {}
+    images: dict[str, str] = {}
+    dups = 0
     if update_num_favorites:
         if spider != "nhentai":
             raise ValueError("Only nhentai spider support update num favorites")
         for res_path in result_files(spider=f"{spider}_num_favorites"):
             with res_path.open(encoding="utf-8") as f:
                 for line in f:
-                    item = item_from_json(spider=spider, json_str=line)
-                    num_favorites[item.id] = item.num_favorites
-    def fix(item: MangaSpiderItem) -> MangaSpiderItem | None:
-        if update_num_favorites:
-            item.num_favorites = num_favorites.get(item.id, 0)
-        return item if item.is_completed() else None
+                    item = json.loads(line)
+                    num_favorites[item["id"]] = item["num_favorites"]
+
+    def fix(item: dict[str, Any]) -> Any:
+        if is_completed(item=item):
+            if update_num_favorites:
+                item["num_favorites"] = num_favorites.get(item["id"], 0)
+            if unique_images:
+                for page in item["download_pages"]:
+                    checksum = page["checksum"]
+                    if checksum in images:
+                        image_path = resolve_feed_store_path(page["path"])
+                        if os.path.exists(image_path):
+                            os.remove(image_path)
+                        page["path"] = images[checksum]
+                        dups += 1
+                    else:
+                        images[checksum] = page["path"]
+            return item
+        else:
+            return None
+
     recreate_items(spider=spider, target_batch_count=batch_count, mapper=fix)
-    
+    if unique_images:
+        print(
+            f"Found {len(images)} unique images, and {dups} duplicate images removed."
+        )
+
+
 def tar_images(spider: str, batch_id: int, dest: str | None = None, move: bool = False):
     file_path = result_file(spider=spider, batch_id=batch_id)
     if file_path.exists():
@@ -139,9 +174,13 @@ def tar_images(spider: str, batch_id: int, dest: str | None = None, move: bool =
                     with mmap_all(f) as mm:
                         for bline in iter(mm.readline, b""):
                             line = bline.decode("utf-8")
-                            item = item_from_json(spider=spider, json_str=line, strict=False)
+                            item = item_from_json(
+                                spider=spider, json_str=line, strict=False
+                            )
                             if item is not None and item.is_completed():
-                                for path in [page["path"] for page in item.download_pages]:
+                                for path in [
+                                    page["path"] for page in item.download_pages
+                                ]:
                                     abs_path = resolve_feed_store_path(path=path)
                                     if exists(abs_path):
                                         tar_file.add(abs_path, arcname=path)
@@ -150,4 +189,6 @@ def tar_images(spider: str, batch_id: int, dest: str | None = None, move: bool =
                             pbar.update()
             print(f"Tar file of item {batch_id} exported -> {tar_path}")
     else:
-        print(f"The result file with batch id {batch_id} not exist. The expected file path is \"f{file_path.as_uri()}\".")
+        print(
+            f'The result file with batch id {batch_id} not exist. The expected file path is "f{file_path.as_uri()}".'
+        )

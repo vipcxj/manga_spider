@@ -7,7 +7,7 @@ SPIDERS = ["nhentai"]
 
 def fix(args: argparse.Namespace):
     batch_count = args.batch_count if args.batch_count >= 0 else get_batch_count()
-    fix_items(args.spider, batch_count, update_num_favorites=args.update_num_favorites)
+    fix_items(args.spider, batch_count, update_num_favorites=args.update_num_favorites, unique_images=args.unique_images)
     
 def repartition(args: argparse.Namespace):
     batch_count = args.batch_count if args.batch_count >= 0 else get_batch_count()
@@ -27,6 +27,7 @@ parser_fix = subparsers.add_parser("fix")
 parser_fix.add_argument("--spider", required=True, choices=SPIDERS, help="The name of the spider")
 parser_fix.add_argument("--batch-count", dest="batch_count", required=False, type=int, default=-1, help="target batch count")
 parser_fix.add_argument("--update-num-favorites", dest="update_num_favorites", action="store_true", help="whether to update the num favorites using num favorites spider results")
+parser_fix.add_argument("--unqiue-images", dest="unique_images", action="store_true", help="whether to remove the duplicate images")
 parser_fix.set_defaults(func=fix)
 
 parser_repartition = subparsers.add_parser("repartition")

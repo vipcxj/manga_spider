@@ -20,13 +20,14 @@ EXTS = {
 
 MEDIA_SERVERS = [3, 5, 7]
 
+
 @dataclass_json
 @dataclass
 class MangaImage:
     t: str = field(default_factory=lambda: "")
     w: int = field(default=0)
     h: int = field(default=0)
-    
+
     @classmethod
     def from_json_obj(cls, obj: Any) -> "Self | None":
         if obj is None:
@@ -40,13 +41,14 @@ class MangaImage:
             image.h = int(obj["h"])
         return image
 
+
 @dataclass_json
 @dataclass
 class MangaImages:
     cover: MangaImage | None = field(default=None)
     pages: list[MangaImage] = field(default_factory=list)
     thumbnail: MangaImage | None = field(default=None)
-    
+
     @classmethod
     def from_json_obj(cls, obj: Any) -> "Self | None":
         if obj is None:
@@ -62,14 +64,32 @@ class MangaImages:
         if "thumbnail" in obj:
             images.thumbnail = MangaImage.from_json_obj(obj["thumbnail"])
         return images
-    
+
+
 def process_tag(tag: str) -> list[str]:
     return list(dict.fromkeys([part.strip() for part in tag.split("|")]))
+
 
 def is_downloaded(page: Any) -> bool:
     if page is None or "status" not in page:
         return False
     return page["status"] == "downloaded"
+
+
+def is_completed(item: Any) -> bool:
+    return (
+        "download_pages" in item
+        and item["download_pages"] is not None
+        and (
+            "pages" in item
+            and item["pages"] is not None
+            and (
+                sum(1 for page in item["download_pages"] if is_downloaded(page))
+                == item["pages"]
+            )
+        )
+    )
+
 
 @dataclass_json
 @dataclass
@@ -94,11 +114,11 @@ class MangaSpiderItem:
         metadata=config(
             encoder=datetime.isoformat,
             decoder=datetime.fromisoformat,
-            mm_field=fields.DateTime(format='iso'),
+            mm_field=fields.DateTime(format="iso"),
         ),
     )
     num_favorites: int = field(default=0)
-    
+
     @classmethod
     def from_json_obj(cls, obj: Any) -> "Self":
         item = cls(id=int(obj["id"]), media_id=str(obj["media_id"]))
@@ -146,7 +166,7 @@ class MangaSpiderItem:
         if "num_favorites" in obj and obj["num_favorites"] is not None:
             item.num_favorites = obj["num_favorites"]
         return item
-    
+
     @abc.abstractmethod
     def type(self) -> str:
         pass
@@ -154,37 +174,49 @@ class MangaSpiderItem:
     @abc.abstractmethod
     def page_urls(self) -> list[str]:
         pass
-    
+
     @abc.abstractmethod
     def page_file_name(self, url: str) -> str:
         pass
-    
+
     def is_completed(self) -> bool:
         if self.pages == 0:
             return True
         else:
-            return self.download_pages is not None and sum(1 for page in self.download_pages if is_downloaded(page)) == self.pages
-        
+            return (
+                self.download_pages is not None
+                and sum(1 for page in self.download_pages if is_downloaded(page))
+                == self.pages
+            )
+
+
 @dataclass_json
 @dataclass
 class NHentaiMangaSpiderItem(MangaSpiderItem):
-    
+
     def type(self) -> str:
         return "nhentai"
-    
+
     def page_urls(self) -> list[str]:
         if self.images is not None:
-            return [f"https://i{random.choice(MEDIA_SERVERS)}.nhentai.net/galleries/{self.media_id}/{i + 1}.{EXTS[page.t]}" for i, page in enumerate(self.images.pages)]
+            return [
+                f"https://i{random.choice(MEDIA_SERVERS)}.nhentai.net/galleries/{self.media_id}/{i + 1}.{EXTS[page.t]}"
+                for i, page in enumerate(self.images.pages)
+            ]
         else:
             return []
-        
+
     def page_file_name(self, url: str) -> str:
         return url.rsplit("/", 1)[1]
-    
+
+
 def item_from_json(spider: str, json_str: str, strict: bool = True) -> MangaSpiderItem:
     if spider == "nhentai":
-        item: NHentaiMangaSpiderItem = cast(Any, NHentaiMangaSpiderItem).schema().loads(json_str) if strict else cast(Any, NHentaiMangaSpiderItem).from_json(json_str)
+        item: NHentaiMangaSpiderItem = (
+            cast(Any, NHentaiMangaSpiderItem).schema().loads(json_str)
+            if strict
+            else cast(Any, NHentaiMangaSpiderItem).from_json(json_str)
+        )
         return item
     else:
         raise ValueError(f"unknown spider {spider}")
-    
