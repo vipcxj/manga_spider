@@ -23,14 +23,16 @@ class MyFeedExport(FeedExporter):
         for path in glob.glob(glob_path):
             m = re.match(reg_path, path)
             if m is not None:
-                if "bi" in m and m["bi"] is not None:
-                    bi = int(m["bi"])
+                bi = m.groupdict().get("bi")
+                if bi is not None:
+                    bi = int(bi)
                     if max_bi is None or bi > max_bi:
                         max_bi = bi
                         max_path = path
                         continue
-                if "bt" in m and m["bt"] is not None:
-                    bt = datetime.datetime.strptime(m["bt"], "%Y-%m-%dT%H-%M-%S.%f+00-00").replace(tzinfo=datetime.timezone.utc)
+                bt = m.groupdict().get("bt")
+                if bt is not None:
+                    bt = datetime.datetime.strptime(bt, "%Y-%m-%dT%H-%M-%S.%f+00-00").replace(tzinfo=datetime.timezone.utc)
                     if max_bt is None or bt > max_bt:
                         max_bt = bt
                         max_path = path
