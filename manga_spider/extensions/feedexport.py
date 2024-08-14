@@ -36,15 +36,13 @@ class MyFeedExport(FeedExporter):
                         max_path = path
                         continue
         return (max_bi, max_bt, max_path if max_path is not None else uri % uri_params)
-
-                        
-                    
     
     def open_spider(self, spider):
         for uri, feed_options in self.feeds.items():
             bi, _, path = self._analyse_uri(uri, spider, feed_options)
+            batch_id = bi if bi is not None else 1
             slot = self._start_new_batch(
-                batch_id=bi if bi is not None else 1,
+                batch_id=batch_id,
                 uri=path,
                 feed_options=feed_options,
                 spider=spider,
@@ -52,4 +50,7 @@ class MyFeedExport(FeedExporter):
             )
             if exists(path):
                 slot.itemcount = utils.count_lines(pathlib.Path(path))
+                print(f"Resumed from item {batch_id} at pos {slot.itemcount}.")
+            elif bi != 1:
+                print(f"The item file {path} not exists, something maybe wrong.")
             self.slots.append(slot)
