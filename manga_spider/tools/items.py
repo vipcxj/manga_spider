@@ -123,7 +123,12 @@ def fix_items(
 ):
     num_favorites: dict[int, int] = {}
     images: dict[str, str] = {}
-    dups = 0
+    stats = {
+        "dups": 0,
+        "not_exists": 0,
+        "items": 0,
+        "completed": 0,
+    }
     if update_num_favorites:
         if spider != "nhentai":
             raise ValueError("Only nhentai spider support update num favorites")
@@ -134,28 +139,34 @@ def fix_items(
                     num_favorites[item["id"]] = item["num_favorites"]
 
     def fix(item: dict[str, Any]) -> Any:
+        stats["items"] += 1
         if is_completed(item=item):
             if update_num_favorites:
                 item["num_favorites"] = num_favorites.get(item["id"], 0)
             if unique_images:
                 for page in item["download_pages"]:
-                    checksum = page["checksum"]
-                    if checksum in images:
-                        image_path = resolve_feed_store_path(page["path"])
-                        if os.path.exists(image_path):
-                            os.remove(image_path)
-                        page["path"] = images[checksum]
-                        dups += 1
+                    image_path = resolve_feed_store_path(page["path"])
+                    if os.path.exists(image_path):
+                        checksum = page["checksum"]
+                        if checksum in images:
+                            if images[checksum] != page["path"]:
+                                os.remove(image_path)
+                                page["path"] = images[checksum]
+                                stats["dups"] += 1
+                        else:
+                            images[checksum] = page["path"]
                     else:
-                        images[checksum] = page["path"]
+                        stats["not_exists"] += 1
+            stats["completed"] += 1
             return item
         else:
             return None
 
     recreate_items(spider=spider, target_batch_count=batch_count, mapper=fix)
+    print(f"Processed {stats['items']} items, {stats['completed']} of them are collected")
     if unique_images:
         print(
-            f"Found {len(images)} unique images, and {dups} duplicate images removed."
+            f"Found {len(images)} unique images and {stats['not_exists']} non-exists images, {stats['dups']} duplicate images removed."
         )
 
 
