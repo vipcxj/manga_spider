@@ -14,6 +14,7 @@ from manga_spider.items import item_from_json, is_completed
 from typing import Callable, Any, TextIO
 import json
 import tqdm
+from pymongo import MongoClient
 
 
 def item_to_json(item: Any) -> str | None:
@@ -163,7 +164,9 @@ def fix_items(
             return None
 
     recreate_items(spider=spider, target_batch_count=batch_count, mapper=fix)
-    print(f"Processed {stats['items']} items, {stats['completed']} of them are collected")
+    print(
+        f"Processed {stats['items']} items, {stats['completed']} of them are collected"
+    )
     if unique_images:
         print(
             f"Found {len(images)} unique images and {stats['not_exists']} non-exists images, {stats['dups']} duplicate images removed."
@@ -203,3 +206,36 @@ def tar_images(spider: str, batch_id: int, dest: str | None = None, move: bool =
         print(
             f'The result file with batch id {batch_id} not exist. The expected file path is "f{file_path.as_uri()}".'
         )
+
+
+def export_to_mongo(
+    mongo_client: MongoClient,
+    spider: str,
+    batch_id: int,
+    db_name: str,
+    collection_name: str,
+):
+    file_path = result_file(spider=spider, batch_id=batch_id)
+    if file_path.exists():
+        collection = mongo_client[db_name][collection_name]
+        lines = count_lines(file_path)
+        with tqdm.tqdm(total=lines, desc=f"Processing {file_path.name}") as pbar:
+            with file_path.open("r+b") as f:
+                with mmap_all(f) as mm:
+                    for bline in iter(mm.readline, b""):
+                        line = bline.decode("utf-8")
+                        item = json.loads(line)
+                        collection.update_one(
+                            {
+                                "spider": spider,
+                                "id": item["id"],
+                            },
+                            {
+                                "$set": {
+                                    **item,
+                                    "spider": spider,
+                                },
+                            },
+                            upsert=True,
+                        )
+                        pbar.update()
